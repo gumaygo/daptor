@@ -1,0 +1,14 @@
+# Dependency directories
+node_modules/
+
+# Logs
+*.log
+*.jsonl
+daptor-monitor.jsonl
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
