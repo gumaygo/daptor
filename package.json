@@ -1,7 +1,7 @@
 {
   "name": "daptor",
   "version": "1.0.0",
-  "description": "Dynamic Android Parallel Testing Orchestration Framework",
+  "description": "CLI orchestrator for parallel Android testing with dynamic ADB and Appium port management.",
   "main": "index.js",
   "bin": {
     "daptor": "./bin/daptor.js"
@@ -9,7 +9,15 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
+  "keywords": [
+    "qa-automation",
+    "appium",
+    "android-testing",
+    "adb",
+    "parallel-testing",
+    "nodejs",
+    "cli"
+  ],
   "author": "",
   "license": "ISC",
   "type": "commonjs",

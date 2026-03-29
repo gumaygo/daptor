@@ -1,76 +1,110 @@
-# DAPTOR (Dynamic Android Parallel Testing Orchestrator)
+# DAPTOR
 
-Running multiple Android emulators for parallel testing is usually a headache due to port conflicts and heavy resource management. DAPTOR is a CLI tool that automates this process by dynamically assigning ADB and Appium ports, allowing you to run 10+ emulators simultaneously without manual configuration.
+Dynamic Android Parallel Testing Orchestrator is a CLI tool for launching and coordinating multiple Android emulators with dynamic ADB and Appium port assignment.
 
-## The Algorithms
+## Problem
 
-DAPTOR uses deterministic algorithms to ensure stability in high-concurrency environments.
+Running Android automation at scale is painful. Emulator boot time is expensive, port conflicts are common, and manual coordination between ADB, Appium, and test runners quickly becomes unreliable when several devices are launched at the same time.
 
-### 1. Dynamic ADB Port Assignment
-To prevent **TOCTOU** (Time-of-Check-Time-of-Use) race conditions, DAPTOR implements an atomic *first-available scan*. 
-Let $P_{ADB} = \{5554, 5556, \dots, p_{max}\}$ be the set of candidate even ports. The assignment for emulator $e_i$ is defined as:
+## Solution
 
-$$Port_{ADB}(e_i) = \min \{ p \in P_{ADB} \mid p \notin UsedPorts \}$$
+DAPTOR automates the orchestration layer for Android test environments by:
 
-### 2. Cyclic Appium Distribution
-To maximize resource utilization across $k$ Appium server instances, we use a cyclic distribution for $n$ emulators:
+- assigning ADB ports dynamically
+- distributing Appium sessions across a reusable port pool
+- launching multiple AVDs in parallel
+- monitoring resource usage during execution
+- exposing ready-to-use device and Appium port mappings for downstream test runners
 
-$$Port_{Appium}(e_i) = Q[(i - 1) \bmod |Q|]$$
+## Tech Stack
 
-Where $Q$ is the pool of pre-allocated Appium ports (e.g., `[4723, 4724, 4725, 4726, 4727]`).
+- Node.js
+- Appium
+- Android SDK
+- ADB
+- WebdriverIO
+- CLI-based orchestration
 
----
+## Key Features
 
-## Prerequisites
-Before running DAPTOR, make sure you have:
-- **Android SDK** installed (with `emulator` and `adb` in your system PATH).
-- **Node.js** (v18 or newer).
-- **Appium** installed globally (`npm install -g appium`).
-- **AVDs** (Android Virtual Devices) already created in your Android Studio.
+- Dynamic ADB port assignment to reduce collision risk
+- Parallel emulator launch workflow for large test batches
+- Appium pool management for controlled resource allocation
+- Graceful shutdown for emulator and Appium cleanup
+- Benchmark documentation with architecture and scalability visuals
+- Example integration for automation scripts via WebdriverIO
 
-## Installation
+## Architecture
+
+![DAPTOR architecture](./docs/images/architecture_daptor.png)
+
+## Benchmark Snapshot
+
+![DAPTOR scalability trend](./docs/images/scalability_trend.png)
+
+![DAPTOR boot time comparison](./docs/images/barchart_boot_time.png)
+
+Based on the included benchmark study:
+
+- 5 emulators reached an average boot time of about 53 seconds
+- 10 emulators reached an average boot time of about 96 seconds
+- success rate stayed at 100 percent
+- port conflicts remained at zero across the observed runs
+
+More detail is available in [docs/BENCHMARKS.md](./docs/BENCHMARKS.md).
+
+## How To Run
+
+1. Install the prerequisites:
+
+- Android SDK with `adb` and `emulator` available in your `PATH`
+- Node.js 18 or newer
+- Appium installed globally
+- Pre-created Android Virtual Devices
+
+2. Install the project dependencies:
+
 ```bash
 git clone https://github.com/gumaygo/daptor.git
 cd daptor
 npm install
 ```
 
-## Usage
+3. List the available AVDs:
 
-### 1. Check your available AVDs
-List your emulator names first:
 ```bash
 emulator -list-avds
 ```
 
-### 2. Start the Orchestrator
-Run DAPTOR and pass the AVD names you want to launch as arguments.
+4. Launch multiple emulators in parallel:
+
 ```bash
-# Example: Launching 3 emulators in parallel
 node bin/daptor.js Pixel_5_API_33 Pixel_6_Pro_API_34 My_Tablet_AVD
 ```
 
-### 3. Run your tests
-Once the CLI shows the emulators are "Ready", you will see a table with their **Device ID** and **Appium Port**. Point your test scripts (WebDriverIO/Cypress/Appium) to these specific ports.
+5. Connect your automation suite to the generated Appium ports.
 
-Check `examples/basic-test.js` to see how to connect your test scripts.
+See [examples/basic-test.js](./examples/basic-test.js) for a minimal WebdriverIO example.
 
-### 4. Stopping
-Simply press `Ctrl + C`. DAPTOR will perform a clean shutdown, killing all emulator processes and Appium servers automatically.
+## Sample Output
 
-## Performance Notes
-Based on my tests (Xeon Gold, 128GB RAM):
-- **5 Emulators**: Avg boot time ~53s.
-- **10 Emulators**: Avg boot time ~96s.
-- **Success Rate**: 100% (Zero port conflicts across 12+ test sessions).
+```text
+[DAPTOR] Starting orchestration for 3 instances...
+[DAPTOR] All emulators ready:
 
-See [BENCHMARKS.md](./docs/BENCHMARKS.md) for detailed stats and charts.
+┌─────────┬─────────────────────┬────────────┐
+│ deviceId│ emulator-5554       │ 4723       │
+│ deviceId│ emulator-5556       │ 4724       │
+│ deviceId│ emulator-5558       │ 4725       │
+└─────────┴─────────────────────┴────────────┘
+```
 
-## Project Structure
-- `src/core/`: The core logic for port management, emulator lifecycle, and resource monitoring.
-- `bin/`: CLI entry point.
-- `docs/`: Technical benchmarks and system architecture diagrams.
-- `examples/`: Boilerplate code for connecting tests.
+## Impact
+
+- Removes repetitive setup work from Android automation pipelines
+- Makes parallel device execution more reliable and easier to scale
+- Demonstrates practical QA automation engineering beyond test scripts alone
 
 ## License
+
 MIT
