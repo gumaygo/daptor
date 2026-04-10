@@ -5,5 +5,7 @@ module.exports = {
   PortManager: require('./src/core/PortManager'),
   EmulatorManager: require('./src/core/EmulatorManager'),
   AppiumManager: require('./src/core/AppiumManager'),
-  Monitor: require('./src/core/Monitor')
+  Monitor: require('./src/core/Monitor'),
+  loadConfig: require('./src/config/loadConfig').loadConfig,
+  runDoctor: require('./src/doctor/runDoctor').runDoctor,
 };

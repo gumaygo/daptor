@@ -1,8 +1,10 @@
+const fs = require('fs');
+const path = require('path');
 const { remote } = require('webdriverio');
 
 /**
  * Example: Running a simple test on a DAPTOR-managed instance.
- * You can loop this across the devices returned by Orchestrator.run().
+ * By default this reads the JSON session output created by DAPTOR v1.1.
  */
 async function runTest(deviceId, appiumPort) {
   const opts = {
@@ -33,4 +35,20 @@ async function runTest(deviceId, appiumPort) {
   }
 }
 
-module.exports = { runTest };
+function loadSession(sessionPath = path.resolve(process.cwd(), 'daptor-session.json')) {
+  const raw = fs.readFileSync(sessionPath, 'utf8');
+  return JSON.parse(raw);
+}
+
+async function runAllFromSession(sessionPath) {
+  const session = loadSession(sessionPath);
+  for (const device of session.devices || []) {
+    await runTest(device.deviceId, device.appiumPort);
+  }
+}
+
+module.exports = {
+  runTest,
+  loadSession,
+  runAllFromSession,
+};

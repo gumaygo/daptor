@@ -1,0 +1,30 @@
+{
+  "paths": {
+    "sessionOutputPath": "./artifacts/daptor-session.json",
+    "monitorLogPath": "./artifacts/daptor-monitor.jsonl"
+  },
+  "commands": {
+    "adb": "adb",
+    "emulator": "emulator",
+    "appium": "appium"
+  },
+  "ports": {
+    "adbRange": [5554, 5584],
+    "appiumPool": [4723, 4724, 4725]
+  },
+  "emulator": {
+    "bootTimeoutMs": 180000,
+    "bootPollIntervalMs": 5000,
+    "headless": true,
+    "extraArgs": ["-no-snapshot-load", "-gpu", "swiftshader_indirect"]
+  },
+  "appium": {
+    "host": "127.0.0.1",
+    "startupTimeoutMs": 20000,
+    "extraArgs": []
+  },
+  "monitor": {
+    "intervalMs": 5000,
+    "enabled": true
+  }
+}

@@ -1,13 +1,15 @@
 {
   "name": "daptor",
-  "version": "1.0.0",
-  "description": "CLI orchestrator for parallel Android testing with dynamic ADB and Appium port management.",
+  "version": "1.1.0",
+  "description": "CLI orchestrator for parallel Android testing with doctor checks, config files, and session output JSON.",
   "main": "index.js",
   "bin": {
     "daptor": "./bin/daptor.js"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node ./bin/daptor.js",
+    "doctor": "node ./bin/daptor.js doctor",
+    "test": "node --test test/*.test.js"
   },
   "keywords": [
     "qa-automation",
@@ -16,12 +18,13 @@
     "adb",
     "parallel-testing",
     "nodejs",
-    "cli"
+    "cli",
+    "android-emulator"
   ],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "type": "commonjs",
-  "dependencies": {
-    "chalk": "^4.1.2"
+  "engines": {
+    "node": ">=18"
   }
 }

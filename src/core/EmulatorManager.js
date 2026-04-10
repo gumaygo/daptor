@@ -1,9 +1,13 @@
-const { spawn, execSync } = require('child_process');
-const path = require('path');
+const { spawnCommand, runCommand, sleep } = require('../utils/system');
 
 class EmulatorManager {
-  constructor(portManager) {
-    this.portManager = portManager;
+  constructor(options = {}) {
+    this.portManager = options.portManager;
+    this.adbCommand = options.adbCommand || 'adb';
+    this.emulatorCommand = options.emulatorCommand || 'emulator';
+    this.bootTimeoutMs = options.bootTimeoutMs || 120000;
+    this.bootPollIntervalMs = options.bootPollIntervalMs || 5000;
+    this.extraArgs = options.extraArgs || ['-no-snapshot-load', '-gpu', 'swiftshader_indirect'];
     this.instances = new Map();
   }
 
@@ -11,36 +15,44 @@ class EmulatorManager {
     const port = await this.portManager.getNextAdbPort();
     console.log(`[Emulator] Launching ${avdName} on port ${port}...`);
 
-    const process = spawn('emulator', [
+    const process = spawnCommand(this.emulatorCommand, [
       '-avd', avdName,
       '-port', port.toString(),
-      '-no-snapshot-load',
-      '-gpu', 'swiftshader_indirect'
-    ], { stdio: 'ignore', detached: true });
+      ...this.extraArgs,
+    ], {
+      stdio: 'ignore',
+      detached: true,
+    });
 
     process.unref();
 
     const deviceId = `emulator-${port}`;
     this.instances.set(deviceId, { process, port, avdName });
 
-    await this.waitForBoot(deviceId);
-    await this.optimize(deviceId);
+    try {
+      await this.waitForBoot(deviceId);
+      await this.optimize(deviceId);
+    } catch (error) {
+      await this.shutdownInstance(deviceId);
+      throw error;
+    }
 
     return deviceId;
   }
 
   async waitForBoot(deviceId) {
-    const timeout = 120000; // 2 minutes
     const start = Date.now();
 
-    while (Date.now() - start < timeout) {
+    while (Date.now() - start < this.bootTimeoutMs) {
       try {
-        const status = execSync(`adb -s ${deviceId} shell getprop sys.boot_completed`, { encoding: 'utf8' }).trim();
+        const status = runCommand(this.adbCommand, ['-s', deviceId, 'shell', 'getprop', 'sys.boot_completed'], {
+          allowFailure: true,
+        }).stdout.trim();
         if (status === '1') return true;
       } catch (e) {
         // ADB might not be ready yet
       }
-      await new Promise(r => setTimeout(r, 5000));
+      await sleep(this.bootPollIntervalMs);
     }
     throw new Error(`Timeout: ${deviceId} failed to boot`);
   }
@@ -53,20 +65,43 @@ class EmulatorManager {
     ];
 
     for (const cmd of commands) {
-      execSync(`adb -s ${deviceId} shell ${cmd}`);
+      runCommand(this.adbCommand, ['-s', deviceId, 'shell', ...cmd.split(' ')]);
     }
   }
 
-  shutdownAll() {
-    for (const [deviceId, instance] of this.instances) {
-      console.log(`[Emulator] Stopping ${deviceId}...`);
-      try {
-        execSync(`adb -s ${deviceId} emu kill`);
-      } catch (e) {
-        // Fallback to process kill if adb emu kill fails
-        instance.process.kill();
-      }
+  listAvds() {
+    const result = runCommand(this.emulatorCommand, ['-list-avds'], { allowFailure: false });
+    return result.stdout
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+  }
+
+  async shutdownInstance(deviceId) {
+    const instance = this.instances.get(deviceId);
+    if (!instance) return;
+
+    console.log(`[Emulator] Stopping ${deviceId}...`);
+    try {
+      runCommand(this.adbCommand, ['-s', deviceId, 'emu', 'kill'], { allowFailure: true });
+    } catch (e) {
+      // Best effort fallback below.
     }
+    try {
+      instance.process.kill();
+    } catch (e) {
+      // Ignore already-closed process.
+    }
+    this.portManager.releasePort(instance.port);
+    this.instances.delete(deviceId);
+  }
+
+  async shutdownAll() {
+    const deviceIds = [...this.instances.keys()];
+    for (const deviceId of deviceIds) {
+      await this.shutdownInstance(deviceId);
+    }
+    this.portManager.releaseAll();
   }
 }
 

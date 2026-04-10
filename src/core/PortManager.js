@@ -39,12 +39,16 @@ class PortManager {
         server.close();
         resolve(true);
       });
-      server.listen(port);
+      server.listen(port, '127.0.0.1');
     });
   }
 
   releasePort(port) {
     this.heldPorts.delete(port);
+  }
+
+  releaseAll() {
+    this.heldPorts.clear();
   }
 }
 

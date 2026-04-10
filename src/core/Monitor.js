@@ -1,6 +1,6 @@
 const fs = require('fs');
 const os = require('os');
-const { execSync } = require('child_process');
+const { ensureDirectoryForFile, runCommand } = require('../utils/system');
 
 class Monitor {
   constructor(logPath = 'daptor-monitor.jsonl') {
@@ -9,6 +9,7 @@ class Monitor {
   }
 
   start(intervalMs = 5000) {
+    ensureDirectoryForFile(this.logPath);
     this.interval = setInterval(() => {
       const stats = this.collectStats();
       fs.appendFileSync(this.logPath, JSON.stringify(stats) + '\n');
@@ -17,6 +18,7 @@ class Monitor {
 
   stop() {
     if (this.interval) clearInterval(this.interval);
+    this.interval = null;
   }
 
   collectStats() {
@@ -27,21 +29,24 @@ class Monitor {
     // Simplified QEMU process count (Windows-centric based on Daptor research environment)
     let qemuCount = 0;
     try {
-      const output = execSync('tasklist /FI "IMAGENAME eq qemu-system-x86_64.exe"', { encoding: 'utf8' });
-      qemuCount = (output.match(/qemu-system-x86_64/g) || []).length;
+      if (process.platform === 'win32') {
+        const output = runCommand('tasklist', ['/FI', 'IMAGENAME eq qemu-system-x86_64.exe'], { allowFailure: true }).stdout;
+        qemuCount = (output.match(/qemu-system-x86_64/g) || []).length;
+      }
     } catch (e) {
       // Fallback for other OS or empty list
     }
 
     return {
       timestamp: new Date().toISOString(),
-      cpuUsage: os.loadavg()[0], // Last 1 min avg
+      cpuUsage: process.platform === 'win32' ? null : os.loadavg()[0],
       memory: {
-        used: (usedMem / 1024 / 1024 / 1024).toFixed(2) + ' GB',
-        free: (freeMem / 1024 / 1024 / 1024).toFixed(2) + ' GB',
-        percent: ((usedMem / totalMem) * 100).toFixed(2) + '%'
+        usedMb: Math.round(usedMem / 1024 / 1024),
+        freeMb: Math.round(freeMem / 1024 / 1024),
+        percentUsed: Number(((usedMem / totalMem) * 100).toFixed(2))
       },
-      instances: qemuCount
+      instances: qemuCount,
+      platform: process.platform,
     };
   }
 }
